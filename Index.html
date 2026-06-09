@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hand Color Aura — Korean Color Analysis</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d12;
+      --surface: #16161e;
+      --border: rgba(255,255,255,0.08);
+      --text: #f0eeff;
+      --muted: rgba(240,238,255,0.45);
+      --accent: #c9b6ff;
+      --radius: 16px;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 16px 40px;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0 20px;
+    }
+
+    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+    .badge {
+      font-size: 11px; background: rgba(201,182,255,0.12); color: var(--accent);
+      border: 1px solid rgba(201,182,255,0.25); padding: 4px 10px; border-radius: 99px;
+      letter-spacing: 0.04em;
+    }
+
+    #start-screen, #camera-section, #error-screen {
+      width: 100%; max-width: 600px;
+    }
+
+    #start-screen {
+      display: flex; flex-direction: column; align-items: center; gap: 24px;
+      padding: 40px 0; text-align: center;
+    }
+
+    .orb {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: conic-gradient(from 0deg, #FFD1A3, #D4A5C9, #B0C4DE, #6B8E23, #CC0000, #FFD1A3);
+      animation: spin 8s linear infinite; filter: blur(1px); opacity: 0.9;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #start-screen h1 { font-size: clamp(26px, 6vw, 38px); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+    #start-screen h1 span { color: var(--accent); }
+    #start-screen p { font-size: 15px; color: var(--muted); line-height: 1.7; max-width: 380px; }
+
+    #start-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: #0d0d12; font-size: 15px; font-weight: 600;
+      border: none; padding: 14px 32px; border-radius: 99px; cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    #start-btn:hover { opacity: 0.88; transform: scale(1.02); }
+
+    .steps {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 24px; width: 100%; max-width: 360px;
+    }
+    .step { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+    .step:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; background: rgba(201,182,255,0.15);
+      color: var(--accent); font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    #camera-section { display: none; flex-direction: column; gap: 16px; }
+
+    #cam-wrap {
+      position: relative; width: 100%; aspect-ratio: 4/3;
+      border-radius: var(--radius); overflow: hidden; background: #000; border: 1px solid var(--border);
+    }
+    #video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    #canvas-aura, #canvas-overlay { position: absolute; inset: 0; pointer-events: none; }
+    #canvas-aura { z-index: 2; }
+    #canvas-overlay { z-index: 3; }
+
+    #guide-text {
+      position: absolute; inset: 0; z-index: 4;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; pointer-events: none;
+    }
+    .guide-box { border: 1.5px dashed rgba(255,255,255,0.25); width: 55%; height: 80%; border-radius: 20px; }
+    #guide-label {
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+      color: rgba(255,255,255,0.7); font-size: 13px; padding: 6px 14px;
+      border-radius: 99px; border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    #status-pill {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 99px;
+      padding: 5px 14px; font-size: 12px; color: rgba(255,255,255,0.75);
+      white-space: nowrap; transition: all 0.3s;
+    }
+    #status-pill.detected { color: #9effc3; border-color: rgba(158,255,195,0.25); }
+
+    #palette-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .palette-header { display: flex; align-items: center; justify-content: space-between; }
+    #palette-name { font-size: 18px; font-weight: 600; }
+    #season-tag {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 4px 10px; border-radius: 99px; background: rgba(201,182,255,0.12); color: var(--accent);
+    }
+    #palette-desc { font-size: 14px; color: var(--muted); line-height: 1.65; }
+    #swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+    .swatch {
+      width: 36px; height: 36px; border-radius: 50%; border: 2px solid transparent;
+      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), border-color 0.25s;
+    }
+    .swatch.active {
+      transform: scale(1.35); border-color: rgba(255,255,255,0.55);
+      box-shadow: 0 0 12px var(--swatch-glow);
+    }
+
+    #controls { display: flex; gap: 10px; justify-content: center; }
+    .ctrl-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-size: 14px; font-weight: 500; padding: 10px 22px; border-radius: 99px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,0.06); }
+    .ctrl-btn:active { transform: scale(0.96); }
+
+    #progress { display: flex; gap: 6px; justify-content: center; }
+    .pdot {
+      width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.15);
+      transition: all 0.3s;
+    }
+    .pdot.active { background: var(--accent); transform: scale(1.4); }
+
+    #error-screen {
+      display: none; flex-direction: column; align-items: center;
+      text-align: center; padding: 40px 16px; gap: 16px;
+    }
+    #error-screen .err-icon { font-size: 48px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">✦ Aura</span>
+  <span class="badge">Korean Color Analysis</span>
+</header>
+
+<div id="start-screen">
+  <div class="orb"></div>
+  <h1>Find your<br><span>color season</span></h1>
+  <p>Hold your hand to the camera. We'll drape every Korean color palette around it so you can feel which season is truly yours.</p>
+  <button id="start-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+      <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+    </svg>
+    Open camera
+  </button>
+
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span>Allow camera access when prompted</span></div>
+    <div class="step"><span class="step-num">2</span><span>Hold your open palm toward the camera</span></div>
+    <div class="step"><span class="step-num">3</span><span>Watch colors drape around your hand</span></div>
+    <div class="step"><span class="step-num">4</span><span>Pause on the palette that feels best</span></div>
+  </div>
+</div>
+
+<div id="error-screen">
+  <div class="err-icon">📷</div>
+  <h2 id="error-title">Camera Error</h2>
+  <p id="error-msg"></p>
+  <button class="ctrl-btn" onclick="retryCamera()">Try Again</button>
+</div>
+
+<div id="camera-section">
+  <div id="cam-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas-aura"></canvas>
+    <canvas id="canvas-overlay"></canvas>
+
+    <div id="guide-text">
+      <div class="guide-box"></div>
+      <span id="guide-label">Show your open palm here</span>
+    </div>
+
+    <div id="status-pill">Loading hand detection…</div>
+  </div>
+
+  <div id="palette-card">
+    <div class="palette-header">
+      <div id="palette-name">—</div>
+      <div id="season-tag">Season</div>
+    </div>
+    <div id="palette-desc">Point your camera at your hand…</div>
+    <div id="swatches"></div>
+  </div>
+
+  <div id="progress"></div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="pause-btn">
+      <svg id="pause-icon" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+      </svg>
+      <span id="pause-label">Pause</span>
+    </button>
+    <button class="ctrl-btn" id="next-btn">Next Palette</button>
+  </div>
+</div>
+
+<script>
+// ==================== PALETTES ====================
+const PALETTES = [
+  { name: "Spring Warm", tag: "Warm · Clear", desc: "Bright, warm, golden tones — peach, coral, ivory. You glow in sunshine hues. Best metals: gold.", colors: ["#FFD1A3","#FF8C69","#F4C26B","#E8735A","#FFDAB9","#FF6B6B"], glow: "#FF9A5C" },
+  { name: "Summer Cool", tag: "Cool · Soft", desc: "Soft, muted, rosy — lavender, dusty rose, soft blue. Elegant and delicate. Best metals: silver.", colors: ["#D4A5C9","#B0C4DE","#C8A8C8","#9FB6CD","#E6CCE3","#A8BDCF"], glow: "#C0B0D8" },
+  { name: "Autumn Warm", tag: "Warm · Muted", desc: "Rich, earthy, muted — rust, olive, camel, brown. Deep and grounded. Best metals: copper, gold.", colors: ["#C65C2A","#8B6914","#A0522D","#6B8E23","#D2691E","#8B4513"], glow: "#C47030" },
+  { name: "Winter Cool", tag: "Cool · Clear", desc: "Bold, sharp, icy — deep navy, true red, pure white, black. Striking contrast. Best metals: silver.", colors: ["#2A2A6E","#CC0000","#E8E8FF","#003087","#4B0082","#008B8B"], glow: "#6060CC" },
+  { name: "True Spring", tag: "Warm · Bright", desc: "Clear, bright, warm — bright coral, golden yellow, aqua. Vivid and fresh. Best metals: bright gold.", colors: ["#FF7043","#FDD835","#26C6DA","#FF8A65","#FFCA28","#4DD0E1"], glow: "#FF9040" },
+  { name: "Soft Summer", tag: "Cool · Muted", desc: "Muted, cool, gentle — dusty mauve, sage, soft periwinkle. Harmonious and calm. Best metals: silver.", colors: ["#B08D9C","#8FAF8F","#8899CC","#C4A8B8","#9FB09F","#A0A8C8"], glow: "#A090BC" },
+  { name: "Deep Autumn", tag: "Warm · Deep", desc: "Dark, rich, earthy — forest green, burgundy, chocolate, gold. Strong and mysterious.", colors: ["#5C1A0A","#2D4A1E","#6B4C11","#8B1A1A","#3D5C2A","#7A5C30"], glow: "#7A3010" },
+  { name: "Bright Winter", tag: "Cool · Vivid", desc: "Electric, icy, vivid — fuchsia, cobalt, emerald, pure white. Zero warmth, maximum impact.", colors: ["#CC0066","#0033CC","#00AA66","#FFFFFF","#6600CC","#FF0044"], glow: "#8800CC" }
+];
+
+// ==================== STATE ====================
+let stream = null;
+let handsModel = null;
+let animId = null;
+let paused = false;
+let currentPalette = 0;
+let paletteTimer = 0;
+let swatchIndex = 0;
+let swatchTimer = 0;
+let auraAngle = 0;
+let lastHandsResult = null;
+let handDetected = false;
+let mediapipeReady = false;
+
+const video = document.getElementById('video');
+const canvasOverlay = document.getElementById('canvas-overlay');
+const canvasAura = document.getElementById('canvas-aura');
+const ctxO = canvasOverlay.getContext('2d');
+const ctxA = canvasAura.getContext('2d');
+const statusPill = document.getElementById('status-pill');
+const guideText = document.getElementById('guide-text');
+
+// ==================== CAMERA & ERROR HANDLING ====================
+async function startCamera() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('error-screen').style.display = 'none';
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showError("Your browser doesn't support camera access.", "Browser Not Supported");
+    return;
+  }
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      video.play();
+      document.getElementById('camera-section').style.display = 'flex';
+      updatePaletteUI();
+      buildProgressDots();
+      loadMediaPipe();
+    };
+  } catch (err) {
+    handleCameraError(err);
+  }
+}
+
+function handleCameraError(err) {
+  let title = "Camera Error";
+  let msg = err.message || "Could not access camera.";
+
+  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+    title = "Permission Denied";
+    msg = "Please allow camera access in your browser's address bar.";
+  } else if (err.name === 'NotFoundError') {
+    msg = "No camera found on your device.";
+  } else if (err.name === 'NotReadableError') {
+    msg = "Camera is already in use by another app.";
+  } else if (err.name === 'OverconstrainedError') {
+    fallbackCamera();
+    return;
+  }
+
+  showError(msg, title);
+}
+
+async function fallbackCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      video.play();
+      document.getElementById('camera-section').style.display = 'flex';
+      updatePaletteUI();
+      buildProgressDots();
+      loadMediaPipe();
+    };
+  } catch (e) {
+    showError("Could not access camera even with basic settings.");
+  }
+}
+
+function showError(message, title = "Camera Error") {
+  document.getElementById('error-title').textContent = title;
+  document.getElementById('error-msg').textContent = message;
+  document.getElementById('error-screen').style.display = 'flex';
+}
+
+function retryCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  document.getElementById('error-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display = 'flex';
+}
+
+// ==================== MEDIAPIPE ====================
+function loadMediaPipe() {
+  statusPill.textContent = 'Loading hand detection…';
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+  script.crossOrigin = 'anonymous';
+  script.onload = initMediaPipe;
+  script.onerror = () => {
+    statusPill.textContent = 'Demo mode';
+    mediapipeReady = false;
+    renderLoop();
+  };
+  document.head.appendChild(script);
+}
+
+function initMediaPipe() {
+  try {
+    const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.65, minTrackingConfidence: 0.5 });
+    hands.onResults(results => { lastHandsResult = results; });
+    handsModel = hands;
+    mediapipeReady = true;
+    statusPill.textContent = 'Show your open palm…';
+  } catch (e) {
+    statusPill.textContent = 'Demo mode';
+  }
+  renderLoop();
+}
+
+// ==================== RENDER LOOP & DRAWING (Core) ====================
+function renderLoop() {
+  const w = video.videoWidth || 640;
+  const h = video.videoHeight || 480;
+
+  if (canvasOverlay.width !== w) {
+    canvasOverlay.width = canvasAura.width = w;
+    canvasOverlay.height = canvasAura.height = h;
+  }
+
+  ctxO.clearRect(0, 0, w, h);
+  ctxA.clearRect(0, 0, w, h);
+
+  if (handsModel && video.readyState >= 2) {
+    handsModel.send({ image: video }).catch(() => {});
+  }
+
+  const pal = PALETTES[currentPalette];
+  const res = lastHandsResult;
+
+  if (res?.multiHandLandmarks?.length > 0) {
+    if (!handDetected) {
+      handDetected = true;
+      guideText.style.display = 'none';
+      statusPill.textContent = '✦ Reading your color season…';
+      statusPill.classList.add('detected');
+    }
+
+    const lm = res.multiHandLandmarks[0];
+    const xs = lm.map(p => (1 - p.x) * w);
+    const ys = lm.map(p => p.y * h);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const rad = Math.max(maxX - minX, maxY - minY) * 0.7;
+
+    if (!paused) {
+      swatchTimer++; paletteTimer++;
+      if (swatchTimer >= 22) { swatchTimer = 0; swatchIndex = (swatchIndex + 1) % pal.colors.length; highlightSwatch(swatchIndex); }
+      if (paletteTimer >= 140) { nextPalette(); }
+      auraAngle += 0.022;
+    }
+
+    drawSkeleton(ctxO, xs, ys, pal.colors[swatchIndex]);
+    drawAura(ctxA, cx, cy, rad, pal, swatchIndex);
+  } else {
+    if (handDetected) {
+      handDetected = false;
+      guideText.style.display = 'flex';
+      statusPill.textContent = 'Show your open palm…';
+      statusPill.classList.remove('detected');
+    }
+    if (!mediapipeReady) {
+      const cx = w/2, cy = h/2, rad = Math.min(w,h)*0.22;
+      if (!paused) {
+        swatchTimer++; paletteTimer++;
+        if (swatchTimer >= 22) { swatchTimer = 0; swatchIndex = (swatchIndex + 1) % pal.colors.length; highlightSwatch(swatchIndex); }
+        if (paletteTimer >= 140) { nextPalette(); }
+        auraAngle += 0.022;
+      }
+      drawAura(ctxA, cx, cy, rad, pal, swatchIndex);
+    }
+  }
+
+  animId = requestAnimationFrame(renderLoop);
+}
+
+// Drawing functions (same as original)
+const CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+function drawSkeleton(ctx, xs, ys, color) {
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 14;
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  CONNECTIONS.forEach(([a,b]) => {
+    ctx.beginPath(); ctx.moveTo(xs[a], ys[a]); ctx.lineTo(xs[b], ys[b]); ctx.stroke();
+  });
+  ctx.shadowBlur = 20;
+  xs.forEach((x,i) => {
+    ctx.beginPath(); ctx.arc(x, ys[i], i===0?7:4, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawAura(ctx, cx, cy, rad, pal, swIdx) {
+  const col = pal.colors[swIdx];
+  const glow = pal.glow;
+  ctx.save();
+
+  // Outer bloom
+  for (let ring = 0; ring < 5; ring++) {
+    const r = rad + 28 + ring * 24;
+    const alpha = (0.12 - ring * 0.02).toFixed(2);
+    const g = ctx.createRadialGradient(cx, cy, r-16, cx, cy, r+24);
+    g.addColorStop(0, col + '00');
+    g.addColorStop(0.45, col + Math.round(parseFloat(alpha)*255).toString(16).padStart(2,'0'));
+    g.addColorStop(1, col + '00');
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.strokeStyle = g; ctx.lineWidth = 28; ctx.stroke();
+  }
+
+  // Orbiting particles
+  for (let i = 0; i < 24; i++) {
+    const angle = auraAngle + (i/24)*Math.PI*2;
+    const wobble = Math.sin(auraAngle*2.5 + i*0.9)*16;
+    const r2 = rad + 52 + wobble;
+    const px = cx + Math.cos(angle)*r2;
+    const py = cy + Math.sin(angle)*r2;
+    const sz = 3.5 + Math.sin(auraAngle*3 + i*1.4)*1.5;
+    const c = pal.colors[(i + swIdx) % pal.colors.length];
+    ctx.beginPath(); ctx.arc(px, py, sz, 0, Math.PI*2);
+    ctx.fillStyle = c + 'CC'; ctx.fill();
+  }
+
+  // Inner pulse
+  const pulse = 0.5 + 0.5 * Math.sin(auraAngle * 4);
+  const innerRing = ctx.createRadialGradient(cx, cy, rad-4, cx, cy, rad+14);
+  innerRing.addColorStop(0, glow + '00');
+  innerRing.addColorStop(0.5, glow + Math.round((0.3 + pulse*0.25)*255).toString(16).padStart(2,'0'));
+  innerRing.addColorStop(1, glow + '00');
+  ctx.beginPath(); ctx.arc(cx, cy, rad+8, 0, Math.PI*2);
+  ctx.strokeStyle = innerRing; ctx.lineWidth = 18; ctx.stroke();
+
+  ctx.restore();
+}
+
+// ==================== UI FUNCTIONS ====================
+function updatePaletteUI() {
+  const pal = PALETTES[currentPalette];
+  document.getElementById('palette-name').textContent = pal.name;
+  document.getElementById('season-tag').textContent = pal.tag;
+  document.getElementById('palette-desc').textContent = pal.desc;
+
+  const sw = document.getElementById('swatches');
+  sw.innerHTML = '';
+  pal.colors.forEach((c, i) => {
+    const d = document.createElement('div');
+    d.className = 'swatch' + (i === 0 ? ' active' : '');
+    d.style.background = c;
+    d.style.setProperty('--swatch-glow', c + '88');
+    sw.appendChild(d);
+  });
+}
+
+function highlightSwatch(idx) {
+  document.querySelectorAll('.swatch').forEach((s, i) => {
+    s.classList.toggle('active', i === idx);
+    s.style.setProperty('--swatch-glow', PALETTES[currentPalette].colors[idx] + '88');
+  });
+}
+
+function buildProgressDots() {
+  const pg = document.getElementById('progress');
+  pg.innerHTML = '';
+  PALETTES.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'pdot' + (i === currentPalette ? ' active' : '');
+    pg.appendChild(d);
+  });
+}
+
+function togglePause() {
+  paused = !paused;
+  const icon = document.getElementById('pause-icon');
+  const label = document.getElementById('pause-label');
+  if (paused) {
+    icon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+    label.textContent = 'Resume';
+  } else {
+    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    label.textContent = 'Pause';
+  }
+}
+
+function nextPalette() {
+  currentPalette = (currentPalette + 1) % PALETTES.length;
+  paletteTimer = 0;
+  swatchIndex = 0;
+  updatePaletteUI();
+  buildProgressDots();
+}
+
+// ==================== EVENT LISTENERS ====================
+document.getElementById('start-btn').addEventListener('click', startCamera);
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+document.getElementById('next-btn').addEventListener('click', nextPalette);
+
+window.retryCamera = retryCamera;
+
+// Cleanup
+window.addEventListener('beforeunload', () => {
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  if (animId) cancelAnimationFrame(animId);
+});
+</script>
+</body>
+</html>
